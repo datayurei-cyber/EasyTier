@@ -678,22 +678,20 @@ impl NetworkConfig {
         }
 
         if !self.mapped_listeners.is_empty() {
-            cfg.set_mapped_listeners(Some(
-                self.mapped_listeners
-                    .iter()
-                    .map(|s| {
-                        s.parse()
-                            .with_context(|| format!("mapped listener is not a valid url: {}", s))
-                            .unwrap()
-                    })
-                    .map(|s: url::Url| {
-                        if s.port().is_none() {
-                            panic!("mapped listener port is missing: {}", s);
-                        }
-                        s
-                    })
-                    .collect(),
-            ));
+            let mapped_listeners = self
+                .mapped_listeners
+                .iter()
+                .map(|s| {
+                    let url: url::Url = s
+                        .parse()
+                        .with_context(|| format!("mapped listener is not a valid url: {}", s))?;
+                    if url.port().is_none() {
+                        anyhow::bail!("mapped listener port is missing: {}", url);
+                    }
+                    Ok(url)
+                })
+                .collect::<Result<Vec<_>, anyhow::Error>>()?;
+            cfg.set_mapped_listeners(Some(mapped_listeners));
         }
 
         if let Some(credential_file) = self
